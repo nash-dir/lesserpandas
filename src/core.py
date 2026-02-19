@@ -92,6 +92,80 @@ class DataFrame:
         else:
              raise TypeError(f"Invalid argument type for indexing: {type(item)}")
 
+    def __setitem__(self, key, value):
+        from .series import Series
+        
+        new_col_data = []
+        target_len = self._length
+        
+        if self._length == 0 and not self._data:
+            # Case: Empty DataFrame, setting first column
+            if isinstance(value, list):
+                target_len = len(value)
+            elif isinstance(value, Series):
+                target_len = len(value)
+            else:
+                # Setting scalar to empty DF? Ambiguous length.
+                # Let's assume length 1 or just fail if not list/series
+                # Standard pandas allows setting scalar if index exists.
+                # Here we have no index.
+                # If scalar, treat as length 1? Or just store as [value]
+                target_len = 1 
+            self._length = target_len
+
+        # 1. Series
+        if isinstance(value, Series):
+            if len(value) != target_len:
+                raise ValueError(f"Length of values ({len(value)}) does not match length of index ({target_len})")
+            new_col_data = list(value._data)
+            
+        # 2. List
+        elif isinstance(value, list):
+            if len(value) != target_len:
+                raise ValueError(f"Length of values ({len(value)}) does not match length of index ({target_len})")
+            new_col_data = list(value)
+            
+        # 3. Scalar
+        else:
+            new_col_data = [value] * target_len
+            
+        self._data[key] = new_col_data
+
+    def sort_values(self, by, ascending=True):
+        if by not in self._data:
+            raise KeyError(f"Column '{by}' not found")
+        
+        col_data = self._data[by]
+        indices = list(range(self._length))
+        
+        # Safe sort key for None
+        # (is_none, value) tuple:
+        # False (0) < True (1), so valid values come before None
+        # ascending=True: [Valid..., None]
+        # ascending=False: [None..., Valid] -> Wait, this puts None first?
+        # If we want None last always:
+        # key = lambda i: (col_data[i] is None, col_data[i] if col_data[i] is not None else 0)
+        # ascending=True: (0, val) < (1, 0) -> Valid < None. Correct.
+        # ascending=False: (1, 0) > (0, val) -> None > Valid. None comes first in desc sort (reverse=True).
+        # To strictly mimick pandas (NaN last), we need a custom key that respects direction
+        # But 'ascending' param in sort() acts on the result of key comparison.
+        # Let's stick to safe comparison: None > Valid.
+        # Then Ascending: Valid... None
+        # Descending: None... Valid
+        # The user requested: "None은 무조건 맨 마지막에 오거나 예외 에러가 나지 않도록"
+        # If user wants None last always, we can separate indices
+        
+        none_indices = [i for i in indices if col_data[i] is None]
+        valid_indices = [i for i in indices if col_data[i] is not None]
+        
+        valid_indices.sort(key=lambda i: col_data[i], reverse=not ascending)
+        
+        # Merge: valid then none (Assuming None always last for now, or controllable)
+        # Standard Pandas `na_position='last'` is default.
+        sorted_indices = valid_indices + none_indices
+            
+        return self.iloc[sorted_indices]
+
     def to_dict(self, orient="records"):
         if orient != "records":
             raise ValueError("Only orient='records' is currently supported")
