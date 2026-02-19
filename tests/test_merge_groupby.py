@@ -14,7 +14,7 @@ def test_merge_left():
     left = DataFrame({'id': [1, 2]})
     right = DataFrame({'id': [1]})
     merged = left.merge(right, on='id', how='left')
-    assert merged.shape == (2, 2)
+    assert merged.shape == (2, 1)
     # 2nd row should have None for right columns - check column name (if overlapping, suffixes might apply, but 'id' is joined)
     # 'id' is in left and right, but it's the key.
     # If there were other columns?

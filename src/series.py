@@ -79,6 +79,21 @@ class Series:
     def __eq__(self, other):
         return self._compare(other, lambda x, y: x == y)
 
+    def __ne__(self, other):
+        return self._compare(other, lambda x, y: x != y)
+
+    def __lt__(self, other):
+        return self._compare(other, lambda x, y: x < y)
+
+    def __le__(self, other):
+        return self._compare(other, lambda x, y: x <= y)
+
+    def __gt__(self, other):
+        return self._compare(other, lambda x, y: x > y)
+
+    def __ge__(self, other):
+        return self._compare(other, lambda x, y: x >= y)
+
     def isin(self, values):
         """Check if elements are in values."""
         # optimize with set
@@ -90,19 +105,10 @@ class Series:
         """Apply function to each element safely."""
         result = []
         for x in self._data:
-            # Defensive coding: check None first?
-            # Or just try-except.
-            # User request: "우아하게 처리" (Handle gracefully).
-            # If x is None, usually we preserve None unless function handles it.
-            # Let's pass x to func, but catch errors.
             try:
                 res = func(x)
                 result.append(res)
             except Exception:
-                # If error, append None? 
-                # Or maybe the function expects None?
-                # If strict "None in -> None out" is desired, check x is None.
-                # But let's act like map: try to map, fail to None.
                 result.append(None)
         return Series(result, name=self.name)
 
@@ -140,11 +146,6 @@ class StringMethods:
         return self._str_op(lambda x: x.replace(old, new))
 
     def contains(self, pat):
-        # Returns boolean series. None -> None? Or False?
-        # Pandas .str.contains returns NaN for NaN.
-        # Let's return False for non-string to be "safe" or None?
-        # Request says: "에러를 뱉지 않고 None 또는 False".
-        # Let's return False for non-string, but None for None.
         result = []
         for x in self._series._data:
             if x is None:
@@ -155,18 +156,3 @@ class StringMethods:
                 continue
             result.append(pat in x)
         return Series(result, name=self._series.name)
-
-    def __ne__(self, other):
-        return self._compare(other, lambda x, y: x != y)
-
-    def __lt__(self, other):
-        return self._compare(other, lambda x, y: x < y)
-
-    def __le__(self, other):
-        return self._compare(other, lambda x, y: x <= y)
-
-    def __gt__(self, other):
-        return self._compare(other, lambda x, y: x > y)
-
-    def __ge__(self, other):
-        return self._compare(other, lambda x, y: x >= y)
