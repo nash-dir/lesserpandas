@@ -12,7 +12,31 @@
 
 ## Installation
 
-Simply copy `lesserpandas.py` to your source directory.
+You can install `lesserpandas` using pip:
+
+```bash
+pip install lesserpandas
+```
+
+Or install directly from source for development:
+
+```bash
+pip install -e .
+```
+
+## Development
+
+To set up the development environment and run tests:
+
+1. Install the package with development dependencies:
+   ```bash
+   pip install -e .[dev]
+   ```
+
+2. Run tests using `pytest`:
+   ```bash
+   pytest
+   ```
 
 ## Usage
 

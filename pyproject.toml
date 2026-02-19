@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lesserpandas"
+version = "0.1.0"
+description = "A pure-Python, zero-dependency dataframe tool for small tasks."
+authors = [{name = "Nash Legit"}]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
