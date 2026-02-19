@@ -85,3 +85,38 @@ def test_ndjson_io(tmp_path):
     df_stream = read_ndjson(buffer)
     assert df_stream.shape == (2, 2)
     assert df_stream.iloc[1]['b'] == 'y'
+
+def test_read_csv_chunking():
+    import io
+    # Setup: 4 rows
+    csv_content = "a,b\n1,x\n2,y\n3,z\n4,w\n"
+    buffer = io.StringIO(csv_content)
+    
+    # Chunk size 2 -> should yield 2 DataFrames of size 2
+    chunks = list(read_csv(buffer, chunksize=2))
+    
+    assert len(chunks) == 2
+    assert chunks[0].shape == (2, 2)
+    assert chunks[1].shape == (2, 2)
+    
+    assert chunks[0].iloc[0]['a'] == 1
+    assert chunks[0].iloc[1]['a'] == 2
+    assert chunks[1].iloc[0]['a'] == 3
+    assert chunks[1].iloc[1]['a'] == 4
+
+def test_read_ndjson_chunking():
+    import io
+    # Setup: 3 rows
+    ndjson_content = '{"a": 1}\n{"a": 2}\n{"a": 3}\n'
+    buffer = io.StringIO(ndjson_content)
+    
+    # Chunk size 2 -> should yield 1 DF of size 2, 1 DF of size 1
+    chunks = list(read_ndjson(buffer, chunksize=2))
+    
+    assert len(chunks) == 2
+    assert chunks[0].shape == (2, 1)
+    assert chunks[1].shape == (1, 1)
+    
+    assert chunks[0].iloc[0]['a'] == 1
+    assert chunks[0].iloc[1]['a'] == 2
+    assert chunks[1].iloc[0]['a'] == 3

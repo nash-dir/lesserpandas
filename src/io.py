@@ -23,19 +23,43 @@ def _infer_type(value):
 
     return value
 
-def read_csv(filepath_or_buffer):
+def read_csv(filepath_or_buffer, chunksize=None):
     """
     Read CSV from filepath or file-like object.
+    If chunksize is set, returns a generator yielding DataFrames.
     """
     if isinstance(filepath_or_buffer, str):
         if not os.path.exists(filepath_or_buffer):
             raise FileNotFoundError(f"File not found: {filepath_or_buffer}")
         
-        with open(filepath_or_buffer, mode='r', newline='', encoding='utf-8') as f:
-            return _read_csv_from_file_obj(f)
+        if chunksize is None:
+            with open(filepath_or_buffer, mode='r', newline='', encoding='utf-8') as f:
+                return _read_csv_from_file_obj(f)
+        else:
+            return _read_csv_chunks_from_path(filepath_or_buffer, chunksize)
     else:
         # Assume it's a file-like object
-        return _read_csv_from_file_obj(filepath_or_buffer)
+        if chunksize is None:
+            return _read_csv_from_file_obj(filepath_or_buffer)
+        else:
+            return _read_csv_chunks(filepath_or_buffer, chunksize)
+
+def _read_csv_chunks_from_path(filepath, chunksize):
+    with open(filepath, mode='r', newline='', encoding='utf-8') as f:
+        yield from _read_csv_chunks(f, chunksize)
+
+def _read_csv_chunks(f, chunksize):
+    reader = csv.DictReader(f)
+    chunk = []
+    for row in reader:
+        processed_row = {k: _infer_type(v) for k, v in row.items()}
+        chunk.append(processed_row)
+        if len(chunk) >= chunksize:
+            yield DataFrame(chunk)
+            chunk = []
+    
+    if chunk:
+        yield DataFrame(chunk)
 
 def _read_csv_from_file_obj(f):
     # Use DictReader to handle headers automatically
@@ -66,7 +90,7 @@ def _to_csv_to_file_obj(df, f):
     # Prepare data for writing: None -> ""
     rows_to_write = []
     
-    # Iterate row by row (using iloc logic essentially, but optimized for list of dicts)
+    # Iterate row by row
     num_rows = df.shape[0]
     for i in range(num_rows):
         row = {}
@@ -121,19 +145,44 @@ def _to_json_to_file_obj(df, f):
     records = df.to_dict(orient='records')
     json.dump(records, f, indent=4)
 
-def read_ndjson(filepath_or_buffer):
+def read_ndjson(filepath_or_buffer, chunksize=None):
     """
     Read NDJSON (Newline Delimited JSON) from filepath or file-like object.
     Each line is a separate JSON object.
+    If chunksize is set, returns a generator yielding DataFrames.
     """
     if isinstance(filepath_or_buffer, str):
         if not os.path.exists(filepath_or_buffer):
             raise FileNotFoundError(f"File not found: {filepath_or_buffer}")
 
-        with open(filepath_or_buffer, 'r', encoding='utf-8') as f:
-            return _read_ndjson_from_file_obj(f)
+        if chunksize is None:
+            with open(filepath_or_buffer, 'r', encoding='utf-8') as f:
+                return _read_ndjson_from_file_obj(f)
+        else:
+            return _read_ndjson_chunks_from_path(filepath_or_buffer, chunksize)
     else:
-        return _read_ndjson_from_file_obj(filepath_or_buffer)
+        if chunksize is None:
+             return _read_ndjson_from_file_obj(filepath_or_buffer)
+        else:
+             return _read_ndjson_chunks(filepath_or_buffer, chunksize)
+
+def _read_ndjson_chunks_from_path(filepath, chunksize):
+    with open(filepath, 'r', encoding='utf-8') as f:
+         yield from _read_ndjson_chunks(f, chunksize)
+
+def _read_ndjson_chunks(f, chunksize):
+    chunk = []
+    for line in f:
+        line = line.strip()
+        if line:
+            chunk.append(json.loads(line))
+        
+        if len(chunk) >= chunksize:
+            yield DataFrame(chunk)
+            chunk = []
+            
+    if chunk:
+        yield DataFrame(chunk)
 
 def _read_ndjson_from_file_obj(f):
     data = []

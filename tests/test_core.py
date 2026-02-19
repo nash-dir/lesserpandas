@@ -160,3 +160,24 @@ def test_sort_values_na_position():
     assert res_first.iloc[1]['A'] is None
     assert res_first.iloc[2]['A'] == 1
 
+    assert res_first.iloc[1]['A'] is None
+    assert res_first.iloc[2]['A'] == 1
+
+def test_to_dict_list():
+    df = DataFrame({'A': [1, 2], 'B': [3, 4]})
+    res = df.to_dict(orient='list')
+    assert isinstance(res, dict)
+    assert res['A'] == [1, 2]
+    assert res['B'] == [3, 4]
+    
+    # Verify deepcopy safety
+    res['A'][0] = 999
+    assert df['A'][0] == 1
+
+def test_to_records():
+    df = DataFrame({'A': [1, 2], 'B': ['x', 'y']})
+    res = df.to_records()
+    assert isinstance(res, list)
+    assert len(res) == 2
+    assert res[0] == (1, 'x')
+    assert res[1] == (2, 'y')

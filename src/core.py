@@ -185,16 +185,30 @@ class DataFrame:
         return self.iloc[sorted_indices]
 
     def to_dict(self, orient="records"):
-        if orient != "records":
-            raise ValueError("Only orient='records' is currently supported")
-        
-        records = []
-        for i in range(self.shape[0]):
-            row = {}
-            for col in self.columns:
-                row[col] = self._data[col][i]
-            records.append(row)
-        return records
+        if orient == "records":
+            records = []
+            for i in range(self.shape[0]):
+                row = {}
+                for col in self.columns:
+                    row[col] = self._data[col][i]
+                records.append(row)
+            return records
+        elif orient == "list":
+            # Return {col: [values]}
+            # Deep copy to be safe
+            import copy
+            return copy.deepcopy(self._data)
+        else:
+            raise ValueError("Only orient='records' and 'list' are currently supported")
+
+    def to_records(self):
+        """
+        Convert DataFrame to a list of tuples.
+        """
+        # Efficiently zip columns
+        # self.columns ensures order
+        cols_data = [self._data[col] for col in self.columns]
+        return list(zip(*cols_data))
 
     def fillna(self, value):
         new_data = {}
