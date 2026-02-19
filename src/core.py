@@ -224,9 +224,13 @@ class DataFrame:
         from .io import to_csv
         to_csv(self, filepath)
 
-    def to_json(self, filepath):
+    def to_json(self, filepath_or_buffer):
         from .io import to_json
-        to_json(self, filepath)
+        to_json(self, filepath_or_buffer)
+
+    def to_ndjson(self, filepath_or_buffer):
+        from .io import to_ndjson
+        to_ndjson(self, filepath_or_buffer)
 
     def groupby(self, by, as_index=True):
         from .groupby import GroupBy
