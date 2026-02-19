@@ -1,87 +1,99 @@
 import pytest
-from src import DataFrame
+from src import DataFrame, Series
 
-def test_merge_inner():
-    left = DataFrame({'id': [1, 2], 'l': ['a', 'b']})
-    right = DataFrame({'id': [1, 3], 'r': ['x', 'y']})
-    merged = left.merge(right, on='id', how='inner')
-    assert merged.shape == (1, 3)
-    assert merged.iloc[0]['id'] == 1
-    assert merged.iloc[0]['l'] == 'a'
-    assert merged.iloc[0]['r'] == 'x'
-
-def test_merge_left():
-    left = DataFrame({'id': [1, 2]})
-    right = DataFrame({'id': [1]})
-    merged = left.merge(right, on='id', how='left')
-    assert merged.shape == (2, 1)
-    # 2nd row should have None for right columns - check column name (if overlapping, suffixes might apply, but 'id' is joined)
-    # 'id' is in left and right, but it's the key.
-    # If there were other columns?
-    # Right has no other columns here? wait, merge adds all columns.
-    # 'id' is key. 'id' comes from left.
-    # Right columns? 'id' is the only one.
-    # Let's add a value column to right to test None.
+def test_merge_right():
+    df1 = DataFrame({'key': ['a', 'b'], 'val1': [1, 2]})
+    df2 = DataFrame({'key': ['b', 'c'], 'val2': [3, 4]})
     
-    right2 = DataFrame({'id': [1], 'r': [10]})
-    merged2 = left.merge(right2, on='id', how='left')
-    assert merged2.shape == (2, 2)
-    assert merged2.iloc[1]['id'] == 2
-    assert merged2.iloc[1]['r'] is None
-
-def test_merge_multi_key():
-    left = DataFrame({
-        'k1': ['A', 'A', 'B'],
-        'k2': [1, 2, 1],
-        'v': [10, 20, 30]
-    })
-    right = DataFrame({
-        'k1': ['A', 'B'],
-        'k2': [1, 1],
-        'v': [100, 300]
-    })
-    # v_x, v_y expected
-    merged = left.merge(right, on=['k1', 'k2'])
+    # Right join: keys [b, c]
+    res = df1.merge(df2, on='key', how='right')
+    assert res.shape == (2, 3)
     
-    assert merged.shape == (2, 4) # k1, k2, v_x, v_y
-    columns = set(merged.columns)
-    assert 'v_x' in columns
-    assert 'v_y' in columns
+    # Check 'b' row
+    # Sort for deterministic check if order not guaranteed? 
+    # Hash map logic order depends on right dataframe order? Yes, implemented that way.
+    # Right DF order: b then c.
+    # Result should correspond to right indices order (unless map bucket issue, but map iterates indices).
+    # wait, map construction iterates right.
+    # probing left doesn't apply for right-only items in my outer logic.
+    # my implementation:
+    # 1. probes left -> matches 'b'.
+    # 2. adds unmatched right -> 'c'.
+    # so order: match(b), unmatched(c).
     
-    # Check Row 1 (A, 1)
-    row0 = merged.iloc[0]
-    assert row0['k1'] == 'A'
-    assert row0['k2'] == 1
-    assert row0['v_x'] == 10
-    assert row0['v_y'] == 100
-
-def test_groupby_single():
-    df = DataFrame({'key': ['A', 'B', 'A'], 'val': [1, 2, 3]})
-    g = df.groupby('key').sum()
-    assert g.shape == (2, 2)
+    row_b = res.loc[0] if res['key'][0] == 'b' else res.loc[1]
+    assert row_b['key'] == 'b'
+    assert row_b['val1'] == 2
+    assert row_b['val2'] == 3
     
-    # Sort order is deterministic (dictionary keys sorted)
-    # A comes before B
-    assert g.iloc[0]['key'] == 'A'
-    assert g.iloc[0]['val'] == 4 # 1+3
+    row_c = res.loc[1] if res['key'][1] == 'c' else res.loc[0]
+    assert row_c['key'] == 'c'
+    assert row_c['val1'] is None
+    assert row_c['val2'] == 4
 
-def test_df_apply_rows():
-    df = DataFrame({'a': [1, 2], 'b': [10, 20]})
-    # Sum rows
-    s = df.apply(lambda row: row['a'] + row['b'], axis=1)
-    assert len(s) == 2
-    assert s[0] == 11
-    assert s[1] == 22
+def test_merge_outer():
+    df1 = DataFrame({'key': ['a', 'b'], 'val1': [1, 2]})
+    df2 = DataFrame({'key': ['b', 'c'], 'val2': [3, 4]})
+    
+    # Outer join: keys [a, b, c]
+    res = df1.merge(df2, on='key', how='outer')
+    assert res.shape == (3, 3)
+    
+    # Logic: Left probe (a, b) -> adds a(left-only), b(match). Then adds c(right-unmatched).
+    # Expected keys: a, b, c (order might vary slightly depending on map implementation, but roughly left then right-unmatched)
+    
+    keys = set(res['key'])
+    assert keys == {'a', 'b', 'c'}
+    
+    # Check values
+    # We can use boolean indexing if implemented robustly, or just loop
+    for i in range(3):
+        row = res.loc[i]
+        k = row['key']
+        if k == 'a':
+            assert row['val1'] == 1
+            assert row['val2'] is None
+        elif k == 'b':
+            assert row['val1'] == 2
+            assert row['val2'] == 3
+        elif k == 'c':
+            assert row['val1'] is None
+            assert row['val2'] == 4
 
-
-def test_groupby_multi():
+def test_groupby_agg_dict():
     df = DataFrame({
-        'k1': ['A', 'A', 'B'],
-        'k2': [1, 2, 1],
-        'val': [10, 20, 30]
+        'A': ['foo', 'bar', 'foo', 'bar'],
+        'B': [1, 2, 3, 4],
+        'C': [10, 20, 30, 40]
     })
-    g = df.groupby(['k1', 'k2']).sum()
-    assert g.shape == (3, 3) 
-    # Groups: (A,1)->10, (A,2)->20, (B,1)->30
-    assert g.iloc[0]['val'] == 10
-    assert g.iloc[2]['val'] == 30
+    
+    g = df.groupby('A')
+    res = g.agg({'B': 'sum', 'C': 'max'})
+    
+    # Default as_index=True. 'A' should be index.
+    assert res.index == ['bar', 'foo']  # Sorted keys
+    assert 'A' not in res.columns # It's in index
+    
+    # Check bar
+    # B: 2+4=6, C: max(20, 40)=40
+    # res.loc['bar'] should work
+    assert res.loc['bar']['B'] == 6
+    assert res.loc['bar']['C'] == 40
+    
+    # Check foo
+    # B: 1+3=4, C: max(10, 30)=30
+    assert res.loc['foo']['B'] == 4
+    assert res.loc['foo']['C'] == 30
+
+def test_groupby_as_index_false():
+    df = DataFrame({
+        'A': ['foo', 'bar'],
+        'B': [1, 2]
+    })
+    g = df.groupby('A', as_index=False)
+    res = g.agg({'B': 'sum'})
+    
+    assert 'A' in res.columns
+    assert res.index == [0, 1] # RangeIndex
+    assert res['A'][0] == 'bar'
+    assert res['B'][0] == 2

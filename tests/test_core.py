@@ -95,3 +95,68 @@ def test_sort_values():
     assert res_desc[1] == 2
     assert res_desc[2] == 1
     assert res_desc[3] is None
+
+def test_explicit_index():
+    df = DataFrame({'a': [1, 2, 3]}, index=['x', 'y', 'z'])
+    assert df.index == ['x', 'y', 'z']
+    # .loc check
+    # Single label returns Series-like dict (indexer for now)
+    # The _LocIndexer implementation returns df.iloc[idx], which returns a dict if single row.
+    # So df.loc['y'] should range over columns.
+    assert df.loc['y']['a'] == 2
+
+    # Series index check (creation)
+    s = Series([10, 20], index=['a', 'b'])
+    assert s.index == ['a', 'b']
+    
+    # Series slicing maintains index
+    s_slice = s[0:1]
+    assert s_slice.index == ['a']
+    assert s_slice[0] == 10
+
+def test_dataframe_loc_list():
+    df = DataFrame({'a': [1, 2, 3]}, index=['x', 'y', 'z'])
+    subset = df.loc[['x', 'z']]
+    assert subset.shape == (2, 1)
+    assert subset.index == ['x', 'z']
+    assert subset.iloc[0]['a'] == 1
+    assert subset.iloc[1]['a'] == 3
+
+def test_boolean_indexing_preserves_index():
+    df = DataFrame({'a': [1, 2, 3]}, index=['x', 'y', 'z'])
+    # Filter where a > 1
+    # Manual boolean list
+    filtered = df[[False, True, True]]
+    assert filtered.shape == (2, 1)
+    assert filtered.index == ['y', 'z']
+    assert filtered.iloc[0]['a'] == 2
+
+def test_strict_series_arithmetic():
+    s1 = Series([1, 2, 3])
+    s2 = Series([1, 2])
+    
+    # Mismatched length should raise ValueError
+    with pytest.raises(ValueError, match='Can only compare identically-labeled Series objects'):
+        _ = s1 + s2
+        
+    s3 = Series([10, 20, 30])
+    res = s1 + s3
+    assert len(res) == 3
+    assert res[0] == 11
+
+
+def test_sort_values_na_position():
+    df = DataFrame({'A': [1, None, 2, None]})
+    
+    # Default: last
+    res_last = df.sort_values('A', na_position='last')
+    assert res_last.iloc[2]['A'] is None
+    assert res_last.iloc[3]['A'] is None
+    assert res_last.iloc[0]['A'] == 1
+    
+    # First
+    res_first = df.sort_values('A', na_position='first')
+    assert res_first.iloc[0]['A'] is None
+    assert res_first.iloc[1]['A'] is None
+    assert res_first.iloc[2]['A'] == 1
+

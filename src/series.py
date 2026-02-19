@@ -1,55 +1,82 @@
 class Series:
-    def __init__(self, data: list, name: str = None):
+    def __init__(self, data: list, index=None, name: str = None):
         if not isinstance(data, list):
             raise TypeError(f"Series data must be a list, got {type(data)}")
         self._data = data
         self.name = name
+        
+        if index is None:
+            self.index = list(range(len(data)))
+        else:
+            if len(index) != len(data):
+                raise ValueError(f"Index length {len(index)} must match data length {len(data)}")
+            self.index = list(index)
 
     def __len__(self):
         return len(self._data)
 
-    def __getitem__(self, index):
-        return self._data[index]
+    def __getitem__(self, item):
+        # 1. Slice: Return new Series with sliced data and index
+        if isinstance(item, slice):
+            new_data = self._data[item]
+            new_index = self.index[item]
+            return Series(new_data, index=new_index, name=self.name)
+            
+        # 2. Boolean Indexing (List of bools): Return filtered Series
+        if isinstance(item, list) and item and isinstance(item[0], bool):
+            if len(item) != len(self._data):
+                raise ValueError(f"Item length {len(item)} does not match Series length {len(self._data)}")
+            new_data = [val for val, keep in zip(self._data, item) if keep]
+            new_index = [idx for idx, keep in zip(self.index, item) if keep]
+            return Series(new_data, index=new_index, name=self.name)
+
+        # 3. Simple integer index
+        return self._data[item]
 
     def __iter__(self):
         return iter(self._data)
 
     def __repr__(self):
         name_str = f", name='{self.name}'" if self.name else ""
-        return f"Series({self._data}{name_str})"
+        return f"Series({self._data}, index={self.index}{name_str})"
 
     def _compare(self, other, op):
         result = []
-        for x in self._data:
+        is_series = isinstance(other, Series)
+        
+        if is_series and len(self) != len(other):
+             raise ValueError("Can only compare identically-labeled Series objects")
+
+        for i, x in enumerate(self._data):
             if x is None:
-                result.append(False) # None comparison usually results in False or specific handling
+                result.append(False) 
                 continue
             
-            val = other
-            if isinstance(other, Series):
-                 # Element-wise comparison not fully implemented for Series vs Series in this simple version
-                 # Assumption: other is scalar for now based on requirements
-                 pass
+            if is_series:
+                 val = other._data[i]
+            else:
+                 val = other
 
             try:
                 res = op(x, val)
                 result.append(res)
             except TypeError:
                 result.append(False)
-        return result
+        return Series(result, index=self.index, name=self.name)
 
     def _arithmetic_op(self, other, op):
         result = []
         is_series = isinstance(other, Series)
         
+        if is_series:
+            if len(self) != len(other):
+                raise ValueError("Can only compare identically-labeled Series objects")
+        
         for i in range(len(self._data)):
             val1 = self._data[i]
             
             if is_series:
-                if i < len(other._data):
-                    val2 = other._data[i]
-                else:
-                    val2 = None # Should not happen if aligned, but safe
+                val2 = other._data[i]
             else:
                 val2 = other
                 
@@ -62,7 +89,7 @@ class Series:
                 except (TypeError, ZeroDivisionError):
                     result.append(None)
                     
-        return Series(result, name=self.name)
+        return Series(result, index=self.index, name=self.name)
 
     def __add__(self, other):
         return self._arithmetic_op(other, lambda x, y: x + y)
@@ -111,6 +138,44 @@ class Series:
             except Exception:
                 result.append(None)
         return Series(result, name=self.name)
+
+    def astype(self, dtype):
+        """Cast Series elements to dtype."""
+        result = []
+        for x in self._data:
+            if x is None:
+                result.append(None)
+            else:
+                try:
+                    result.append(dtype(x))
+                except (ValueError, TypeError):
+                    # Raise or None?
+                    # User requested 'appropriate defense logic'
+                    # Standard pandas raises.
+                    # But user also mentioned "smoothly pass".
+                    # Let's try strict first as per standard practice, but maybe allow errors='ignore' later.
+                    # Given "appropriate defense logic", catching and raising ValueError with clear message is good.
+                    raise ValueError(f"Could not cast value '{x}' to {dtype}")
+        return Series(result, index=self.index, name=self.name)
+
+    def value_counts(self):
+        """Return a Series containing counts of unique values."""
+        counts = {}
+        for x in self._data:
+            if x in counts:
+                counts[x] += 1
+            else:
+                counts[x] = 1
+        
+        # Sort descending
+        sorted_items = sorted(counts.items(), key=lambda item: item[1], reverse=True)
+        
+        # Create Series
+        # Index = unique values, Data = counts
+        indices = [item[0] for item in sorted_items]
+        data = [item[1] for item in sorted_items]
+        
+        return Series(data, index=indices, name=self.name)
 
     @property
     def str(self):

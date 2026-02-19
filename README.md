@@ -1,7 +1,10 @@
 # Lesserpandas
 
-**The 100KB Pandas for AWS Lambda & Edge AI.**
-*Recommended only when you don't need Numpy.*
+**Runtime-native DataFrame family for AWS Lambda & Edge AI.**
+*Recommended when you don't need Numpy.*
+
+The lesser panda is not a *lesser-panda*. 
+It evolved differently and lives elsewhere. So is `lesserpandas`.
 
 ## Features
 
