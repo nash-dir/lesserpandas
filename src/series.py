@@ -126,7 +126,7 @@ class Series:
         # optimize with set
         if not isinstance(values, set):
             values = set(values)
-        return Series([x in values for x in self._data], name=self.name)
+        return Series([x in values for x in self._data], index=self.index, name=self.name)
 
     def apply(self, func):
         """Apply function to each element safely."""
@@ -137,7 +137,7 @@ class Series:
                 result.append(res)
             except Exception:
                 result.append(None)
-        return Series(result, name=self.name)
+        return Series(result, index=self.index, name=self.name)
 
     def astype(self, dtype):
         """Cast Series elements to dtype."""
@@ -199,7 +199,7 @@ class StringMethods:
                 result.append(op(x))
             except Exception:
                 result.append(None)
-        return Series(result, name=self._series.name)
+        return Series(result, index=self._series.index, name=self._series.name)
 
     def lower(self):
         return self._str_op(lambda x: x.lower())
@@ -220,4 +220,4 @@ class StringMethods:
                 result.append(False) # Strict type check?
                 continue
             result.append(pat in x)
-        return Series(result, name=self._series.name)
+        return Series(result, index=self._series.index, name=self._series.name)

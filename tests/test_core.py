@@ -181,3 +181,10 @@ def test_to_records():
     assert len(res) == 2
     assert res[0] == (1, 'x')
     assert res[1] == (2, 'y')
+
+def test_apply_axis1_preserves_index():
+    df = DataFrame({'a': [1, 2, 3], 'b': [4, 5, 6]}, index=['x', 'y', 'z'])
+    res = df.apply(lambda row: row['a'] + row['b'], axis=1)
+    assert res.index == ['x', 'y', 'z']
+    assert res[0] == 5
+    assert res[2] == 9

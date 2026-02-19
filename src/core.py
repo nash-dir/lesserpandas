@@ -285,7 +285,7 @@ class DataFrame:
                 except Exception:
                     result.append(None)
             from .series import Series
-            return Series(result)
+            return Series(result, index=self.index)
         
         else:
              raise ValueError("Axis must be 0 or 1")

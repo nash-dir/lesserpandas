@@ -48,6 +48,7 @@ The goal is not feature parity with `pandas`, but predictable behavior in constr
 * Machine Learning training or heavy numerical computation.
 * Large datasets (100k+ rows). Pure Python lists/dicts will scale poorly.
 * Complex statistical analytics, window functions, or multi-indexing.
+* Operations assume positional alignment, not full label-based reindexing semantics like `pandas`.
 * **If you need serious analytics, use `pandas`.**
 
 ---

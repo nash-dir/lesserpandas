@@ -42,3 +42,30 @@ def test_str_contains():
     assert has_a[1] is True  # banana
     assert has_a[2] is False # cherry
     assert has_a[3] is None  # None -> None
+
+def test_apply_preserves_index():
+    s = Series([1, 2, 3], index=['x', 'y', 'z'])
+    res = s.apply(lambda x: x * 2)
+    assert res.index == ['x', 'y', 'z']
+    assert res[0] == 2
+    assert res[2] == 6
+
+def test_str_accessor_preserves_index():
+    s = Series(['A', 'B'], index=['idx1', 'idx2'])
+    res = s.str.lower()
+    assert res.index == ['idx1', 'idx2']
+    assert res[0] == 'a'
+
+def test_str_contains_preserves_index():
+    s = Series(['apple', 'banana'], index=['fruit1', 'fruit2'])
+    res = s.str.contains('a')
+    assert res.index == ['fruit1', 'fruit2']
+    assert res[0] is True
+
+def test_isin_preserves_index():
+    s = Series([1, 2, 3], index=['x', 'y', 'z'])
+    res = s.isin([1, 3])
+    assert res.index == ['x', 'y', 'z']
+    assert res[0] is True
+    assert res[1] is False
+    assert res[2] is True
