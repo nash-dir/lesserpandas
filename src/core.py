@@ -92,6 +92,46 @@ class DataFrame:
         else:
              raise TypeError(f"Invalid argument type for indexing: {type(item)}")
 
+    def to_dict(self, orient="records"):
+        if orient != "records":
+            raise ValueError("Only orient='records' is currently supported")
+        
+        records = []
+        for i in range(self.shape[0]):
+            row = {}
+            for col in self.columns:
+                row[col] = self._data[col][i]
+            records.append(row)
+        return records
+
+    def fillna(self, value):
+        new_data = {}
+        for col, values in self._data.items():
+            new_data[col] = [val if val is not None else value for val in values]
+        return DataFrame(new_data)
+
+    def dropna(self):
+        # Identify indices to keep
+        keep_indices = []
+        for i in range(self.shape[0]):
+            has_none = False
+            for col in self.columns:
+                if self._data[col][i] is None:
+                    has_none = True
+                    break
+            if not has_none:
+                keep_indices.append(i)
+        
+        # Create new DataFrame with kept rows
+        if not keep_indices:
+            return DataFrame({col: [] for col in self.columns})
+        
+        return self.iloc[keep_indices]
+
+    def to_csv(self, filepath):
+        from .io import to_csv
+        to_csv(self, filepath)
+
     def groupby(self, by: str):
         from .groupby import GroupBy
         return GroupBy(self, by)
