@@ -4,15 +4,30 @@ class GroupBy:
     def __init__(self, df, by):
         self.df = df
         self.by = by
-        if by not in df.columns:
-            raise KeyError(f"Column '{by}' not found")
-
-        # Group indices: {group_key: [row_idx1, row_idx2, ...]}
-        self.groups = {}
-        by_col = df._data[by]
         
-        for idx in range(df.shape[0]):
-            key = by_col[idx]
+        # Normalize 'by' to always be a list for consistent internal handling
+        if isinstance(by, str):
+            self.by_cols = [by]
+        elif isinstance(by, list):
+            self.by_cols = by
+        else:
+             raise TypeError("Group key must be a string or list of strings")
+            
+        for col in self.by_cols:
+            if col not in df.columns:
+                raise KeyError(f"Column '{col}' not found")
+
+        # Group indices: {group_key_tuple: [row_idx1, row_idx2, ...]}
+        self.groups = {}
+        
+        # Pre-fetch columns for performance
+        by_data = [df._data[col] for col in self.by_cols]
+        num_rows = df.shape[0]
+        
+        for idx in range(num_rows):
+            # Create a tuple key
+            key = tuple(col_data[idx] for col_data in by_data)
+            
             if key not in self.groups:
                 self.groups[key] = []
             self.groups[key].append(idx)
@@ -20,12 +35,12 @@ class GroupBy:
     def _aggregate(self, func_name):
         """Helper to aggregate numeric columns."""
         # Result structure: {col: [val_group1, val_group2, ...]}
-        result_data = {self.by: []}
+        result_data = {col: [] for col in self.by_cols}
         
-        # Identify numeric columns (excluding 'by' column)
+        # Identify numeric columns (excluding 'by' columns)
         numeric_cols = []
         for col in self.df.columns:
-            if col == self.by:
+            if col in self.by_cols:
                 continue
             # Simple check: check first non-None value if it's a number
             first_val = next((x for x in self.df._data[col] if x is not None), None)
@@ -34,11 +49,23 @@ class GroupBy:
                 result_data[col] = []
 
         # Iterate over groups (sorted by key for deterministic output)
-        sorted_keys = sorted(self.groups.keys(), key=lambda x: (x is None, x))
+        # Sorting tuples works naturally in Python (None needs care if mixed, 
+        # but here keys are tuples of values. If values contain None, we need safe sort)
+        # Let's assume for simplicity safe sort isn't strictly enforced for Group keys yet
+        # or use a lambda that handles None in tuples if needed.
+        # Python 3: (1, None) < (1, 2) crashes? No, None vs Int crashes.
+        # Ensure we have a safe key for sorting.
+        def safe_key(k):
+            return tuple((x is None, x) for x in k)
+
+        sorted_keys = sorted(self.groups.keys(), key=safe_key)
         
         for key in sorted_keys:
             indices = self.groups[key]
-            result_data[self.by].append(key)
+            
+            # Add grouping keys to result
+            for i, col in enumerate(self.by_cols):
+                result_data[col].append(key[i])
 
             for col in numeric_cols:
                 values = [self.df._data[col][i] for i in indices if self.df._data[col][i] is not None]

@@ -206,7 +206,11 @@ class DataFrame:
         from .io import to_csv
         to_csv(self, filepath)
 
-    def groupby(self, by: str):
+    def to_json(self, filepath):
+        from .io import to_json
+        to_json(self, filepath)
+
+    def groupby(self, by):
         from .groupby import GroupBy
         return GroupBy(self, by)
 

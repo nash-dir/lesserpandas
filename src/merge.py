@@ -4,30 +4,42 @@ def merge(left, right, on, how='inner'):
     if how not in ('inner', 'left'):
         raise ValueError("Only 'inner' and 'left' merge types are supported")
     
-    if on not in left.columns:
-        raise KeyError(f"Column '{on}' not found in left DataFrame")
-    if on not in right.columns:
-        raise KeyError(f"Column '{on}' not found in right DataFrame")
+    # Normalize 'on' to always be a list
+    if isinstance(on, str):
+        on_cols = [on]
+    elif isinstance(on, list):
+        on_cols = on
+    else:
+        raise TypeError("Merge key must be a string or list of strings")
+
+    for col in on_cols:
+        if col not in left.columns:
+            raise KeyError(f"Column '{col}' not found in left DataFrame")
+        if col not in right.columns:
+            raise KeyError(f"Column '{col}' not found in right DataFrame")
 
     # 1. Build Hash Map from Right DataFrame
-    # right_map: {key: [row_idx1, row_idx2, ...]}
+    # right_map: {key_tuple: [row_idx1, row_idx2, ...]}
     right_map = {}
-    right_col = right._data[on]
+    
+    # Pre-fetch right columns
+    right_on_data = [right._data[col] for col in on_cols]
+    
     for idx in range(right.shape[0]):
-        key = right_col[idx]
+        key = tuple(col_data[idx] for col_data in right_on_data)
         if key not in right_map:
             right_map[key] = []
         right_map[key].append(idx)
 
     # 2. Determine Result Columns and handle suffixes
-    # Identify overlapping columns
-    overlap_cols = set(left.columns) & set(right.columns) - {on}
+    # Identify overlapping columns (excluding join keys)
+    overlap_cols = set(left.columns) & set(right.columns) - set(on_cols)
     
     new_columns = {} # {new_col_name: source_col_name (or None for suffixes)}
     
     # Add left columns
     for col in left.columns:
-        if col == on:
+        if col in on_cols:
             new_columns[col] = ('left', col)
         elif col in overlap_cols:
             new_columns[f"{col}_x"] = ('left', col)
@@ -36,8 +48,8 @@ def merge(left, right, on, how='inner'):
             
     # Add right columns
     for col in right.columns:
-        if col == on:
-            continue # Already handled
+        if col in on_cols:
+            continue # Already handled (from left)
         elif col in overlap_cols:
             new_columns[f"{col}_y"] = ('right', col)
         else:
@@ -47,10 +59,10 @@ def merge(left, right, on, how='inner'):
     result_data = {col: [] for col in new_columns}
 
     # 3. Probe Left DataFrame and Build Result
-    left_col = left._data[on]
+    left_on_data = [left._data[col] for col in on_cols]
     
     for left_idx in range(left.shape[0]):
-        key = left_col[left_idx]
+        key = tuple(col_data[left_idx] for col_data in left_on_data)
         right_indices = right_map.get(key, [])
 
         if not right_indices:

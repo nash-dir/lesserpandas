@@ -62,3 +62,22 @@ def to_csv(df, filepath):
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows_to_write)
+
+import json
+
+def read_json(filepath):
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(f"File not found: {filepath}")
+
+    with open(filepath, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    
+    if not isinstance(data, list):
+         raise TypeError("JSON content must be a list of records")
+
+    return DataFrame(data)
+
+def to_json(df, filepath):
+    records = df.to_dict(orient='records')
+    with open(filepath, 'w', encoding='utf-8') as f:
+        json.dump(records, f, indent=4)

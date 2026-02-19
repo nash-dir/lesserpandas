@@ -24,6 +24,7 @@ def build_monolith():
     # Header
     combined_code.append('"""LesserPandas: The 100KB Pandas for AWS Lambda & Edge AI."""')
     combined_code.append('import csv')
+    combined_code.append('import json')
     combined_code.append('import os')
     combined_code.append('import sys')
     combined_code.append('')
