@@ -214,6 +214,46 @@ class DataFrame:
         from .groupby import GroupBy
         return GroupBy(self, by)
 
+    def apply(self, func, axis=0):
+        if axis == 0:
+            # Column-wise application
+            # Return Series/Dict of results
+            result = {}
+            for col in self.columns:
+                # Apply to Series
+                result[col] = func(self[col])
+            # If result values are scalars, maybe return Series?
+            # If result values are Series, return DataFrame?
+            # For "small tasks", usually we want reduction or transformation.
+            # If transformation (Series -> Series), we can rebuild DF.
+            # Let's see:
+            first_val = next(iter(result.values()), None)
+            from .series import Series
+            if isinstance(first_val, Series):
+                 # Convert dict of Series back to DataFrame
+                 # Assume aligned properties? Not always true.
+                 # Simplified: Just return DataFrame if possible.
+                 return DataFrame({k: v._data for k, v in result.items()})
+            else:
+                 return result # Return dict as "Series" with index=cols
+
+        elif axis == 1:
+            # Row-wise application
+            # Iterate rows, create dict, apply func
+            result = []
+            for i in range(self._length):
+                row = self.iloc[i] # This returns dict
+                try:
+                    res = func(row)
+                    result.append(res)
+                except Exception:
+                    result.append(None)
+            from .series import Series
+            return Series(result)
+        
+        else:
+             raise ValueError("Axis must be 0 or 1")
+
     def merge(self, right, on: str, how: str = 'inner'):
         from .merge import merge
         return merge(self, right, on, how)

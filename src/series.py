@@ -79,6 +79,83 @@ class Series:
     def __eq__(self, other):
         return self._compare(other, lambda x, y: x == y)
 
+    def isin(self, values):
+        """Check if elements are in values."""
+        # optimize with set
+        if not isinstance(values, set):
+            values = set(values)
+        return Series([x in values for x in self._data], name=self.name)
+
+    def apply(self, func):
+        """Apply function to each element safely."""
+        result = []
+        for x in self._data:
+            # Defensive coding: check None first?
+            # Or just try-except.
+            # User request: "우아하게 처리" (Handle gracefully).
+            # If x is None, usually we preserve None unless function handles it.
+            # Let's pass x to func, but catch errors.
+            try:
+                res = func(x)
+                result.append(res)
+            except Exception:
+                # If error, append None? 
+                # Or maybe the function expects None?
+                # If strict "None in -> None out" is desired, check x is None.
+                # But let's act like map: try to map, fail to None.
+                result.append(None)
+        return Series(result, name=self.name)
+
+    @property
+    def str(self):
+        return StringMethods(self)
+
+class StringMethods:
+    def __init__(self, series):
+        self._series = series
+
+    def _str_op(self, op):
+        result = []
+        for x in self._series._data:
+            if x is None:
+                result.append(None) # Propagate None
+                continue
+            if not isinstance(x, str):
+                result.append(None) # Non-string becomes None (safe)
+                continue
+            
+            try:
+                result.append(op(x))
+            except Exception:
+                result.append(None)
+        return Series(result, name=self._series.name)
+
+    def lower(self):
+        return self._str_op(lambda x: x.lower())
+
+    def upper(self):
+        return self._str_op(lambda x: x.upper())
+
+    def replace(self, old, new):
+        return self._str_op(lambda x: x.replace(old, new))
+
+    def contains(self, pat):
+        # Returns boolean series. None -> None? Or False?
+        # Pandas .str.contains returns NaN for NaN.
+        # Let's return False for non-string to be "safe" or None?
+        # Request says: "에러를 뱉지 않고 None 또는 False".
+        # Let's return False for non-string, but None for None.
+        result = []
+        for x in self._series._data:
+            if x is None:
+                result.append(None)
+                continue
+            if not isinstance(x, str):
+                result.append(False) # Strict type check?
+                continue
+            result.append(pat in x)
+        return Series(result, name=self._series.name)
+
     def __ne__(self, other):
         return self._compare(other, lambda x, y: x != y)
 

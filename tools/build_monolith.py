@@ -6,6 +6,7 @@ FILE_ORDER = [
     'series.py',
     'indexing.py',
     'core.py',
+    'concat.py',
     'groupby.py',
     'merge.py',
     'io.py'

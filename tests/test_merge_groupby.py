@@ -65,6 +65,15 @@ def test_groupby_single():
     assert g.iloc[0]['key'] == 'A'
     assert g.iloc[0]['val'] == 4 # 1+3
 
+def test_df_apply_rows():
+    df = DataFrame({'a': [1, 2], 'b': [10, 20]})
+    # Sum rows
+    s = df.apply(lambda row: row['a'] + row['b'], axis=1)
+    assert len(s) == 2
+    assert s[0] == 11
+    assert s[1] == 22
+
+
 def test_groupby_multi():
     df = DataFrame({
         'k1': ['A', 'A', 'B'],
