@@ -1,4 +1,5 @@
 pandas-3.0.0/*
+dev/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

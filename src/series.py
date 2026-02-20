@@ -1,8 +1,9 @@
 class Series:
-    def __init__(self, data: list, index=None, name: str = None):
+    def __init__(self, data: list, index=None, name: str = None, copy: bool = True):
         if not isinstance(data, list):
             raise TypeError(f"Series data must be a list, got {type(data)}")
-        self._data = data
+        
+        self._data = list(data) if copy else data
         self.name = name
         
         if index is None:
@@ -10,7 +11,7 @@ class Series:
         else:
             if len(index) != len(data):
                 raise ValueError(f"Index length {len(index)} must match data length {len(data)}")
-            self.index = list(index)
+            self.index = list(index) if copy else index
 
     def __len__(self):
         return len(self._data)
@@ -44,8 +45,11 @@ class Series:
         result = []
         is_series = isinstance(other, Series)
         
-        if is_series and len(self) != len(other):
-             raise ValueError("Can only compare identically-labeled Series objects")
+        if is_series:
+            if len(self) != len(other):
+                raise ValueError("Can only compare identically-labeled Series objects")
+            if self.index != other.index:
+                raise ValueError("Index mismatch: Align indices manually before operations.")
 
         for i, x in enumerate(self._data):
             if x is None:
@@ -71,6 +75,8 @@ class Series:
         if is_series:
             if len(self) != len(other):
                 raise ValueError("Can only compare identically-labeled Series objects")
+            if self.index != other.index:
+                raise ValueError("Index mismatch: Align indices manually before operations.")
         
         for i in range(len(self._data)):
             val1 = self._data[i]

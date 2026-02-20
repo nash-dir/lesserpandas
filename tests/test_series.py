@@ -1,5 +1,5 @@
 import pytest
-from src import Series
+from src import Series, DataFrame
 
 def test_isin():
     s = Series([1, 2, 3, None])
@@ -69,3 +69,30 @@ def test_isin_preserves_index():
     assert res[0] is True
     assert res[1] is False
     assert res[2] is True
+
+def test_series_list_mutation():
+    raw_data = [1, 2, 3]
+    s = Series(raw_data)
+    # Mutate the original list
+    raw_data[0] = 999
+    # The Series should NOT be affected
+    assert s[0] == 1, "Series state corrupted by external list mutation"
+
+def test_series_copy_false_mutation():
+    raw_data = [1, 2, 3]
+    s = Series(raw_data, copy=False)
+    # Mutate the original list
+    raw_data[0] = 999
+    # The Series SHOULD be affected because we asked for no copy
+    assert s[0] == 999, "Series did not share reference when copy=False"
+
+def test_dataframe_getitem_returns_copy():
+    raw_data = {"A": [1, 2, 3]}
+    df = DataFrame(raw_data)
+    s = df["A"]
+    
+    # Maliciously mutate the returned Series
+    s._data.append(999)
+    
+    # The DataFrame should NOT be affected, preserving rectangular structure
+    assert len(df._data["A"]) == 3, "DataFrame column access returned a view, enabling length mutations"
